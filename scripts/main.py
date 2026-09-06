@@ -1,0 +1,276 @@
+"""
+Main experiment entry point.
+
+Week 1 scope: FedAvg baseline on Fashion-MNIST or CIFAR-10 with no attack.
+Later weeks will extend the --defense and --attack switches.
+
+Usage:
+    python scripts/main.py --dataset fashion-mnist --defense fedavg --seed 42
+"""
+import argparse
+import copy
+import json
+import pickle
+import random
+import time
+from pathlib import Path
+
+import numpy as np
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, Subset
+from torchvision import datasets, transforms
+import yaml
+
+# Local imports — assumes running from project root
+import sys
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from models.simple_cnn import SimpleCNN
+from models.resnet18 import make_resnet18_cifar
+from defenses.fedavg import aggregate as fedavg_aggregate
+
+
+# -----------------------------------------------------------------------------
+# Reproducibility
+# -----------------------------------------------------------------------------
+def set_all_seeds(seed: int):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+# -----------------------------------------------------------------------------
+# Data
+# -----------------------------------------------------------------------------
+DATA_ROOT = Path("./data_cache")
+
+
+def load_dataset(name: str):
+    """Return (train_ds, test_ds) with standard preprocessing."""
+    if name == "fashion-mnist":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.2860,), (0.3530,)),
+        ])
+        train = datasets.FashionMNIST(DATA_ROOT, train=True, download=True,
+                                       transform=transform)
+        test = datasets.FashionMNIST(DATA_ROOT, train=False, download=True,
+                                      transform=transform)
+        return train, test
+    if name == "cifar10":
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2470, 0.2435, 0.2616)),
+        ])
+        transform_test = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2470, 0.2435, 0.2616)),
+        ])
+        train = datasets.CIFAR10(DATA_ROOT, train=True, download=True,
+                                  transform=transform_train)
+        test = datasets.CIFAR10(DATA_ROOT, train=False, download=True,
+                                 transform=transform_test)
+        return train, test
+    raise ValueError(f"Unknown dataset: {name}")
+
+
+def build_model(dataset_name: str) -> nn.Module:
+    if dataset_name == "fashion-mnist":
+        return SimpleCNN(num_classes=10)
+    if dataset_name == "cifar10":
+        return make_resnet18_cifar(num_classes=10)
+    raise ValueError(dataset_name)
+
+
+# -----------------------------------------------------------------------------
+# Local training on one client
+# -----------------------------------------------------------------------------
+def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum,
+                  device):
+    """Run local SGD on one client and return the resulting state_dict."""
+    model = build_model(cfg["_dataset_name"])
+    model.load_state_dict(model_state)
+    model.to(device)
+    model.train()
+
+    subset = Subset(dataset, indices)
+    loader = DataLoader(subset, batch_size=batch_size, shuffle=True,
+                        num_workers=0, drop_last=False)
+    opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+    criterion = nn.CrossEntropyLoss()
+
+    for _ in range(epochs):
+        for xb, yb in loader:
+            xb, yb = xb.to(device), yb.to(device)
+            opt.zero_grad()
+            out = model(xb)
+            loss = criterion(out, yb)
+            loss.backward()
+            opt.step()
+
+    return {k: v.detach().cpu() for k, v in model.state_dict().items()}
+
+
+# -----------------------------------------------------------------------------
+# Evaluation
+# -----------------------------------------------------------------------------
+@torch.no_grad()
+def evaluate(model_state, test_loader, device):
+    model = build_model(cfg["_dataset_name"])
+    model.load_state_dict(model_state)
+    model.to(device)
+    model.eval()
+    correct = total = 0
+    for xb, yb in test_loader:
+        xb, yb = xb.to(device), yb.to(device)
+        pred = model(xb).argmax(dim=1)
+        correct += (pred == yb).sum().item()
+        total += yb.size(0)
+    return correct / total
+
+
+# -----------------------------------------------------------------------------
+# Federated loop
+# -----------------------------------------------------------------------------
+def run_federation(cfg, partition, train_ds, test_ds):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+
+    global_model = build_model(cfg["_dataset_name"]).to(device)
+    global_state = {k: v.detach().cpu() for k, v in global_model.state_dict().items()}
+
+    test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=2)
+
+    client_ids = list(partition.keys())
+    round_metrics = []
+    rng = np.random.default_rng(cfg["seed"])
+
+    total_rounds = cfg["rounds"]
+    print(f"Starting federated training: {total_rounds} rounds")
+
+    for rnd in range(1, total_rounds + 1):
+        t0 = time.time()
+        # Sample participating clients
+        participants = rng.choice(client_ids,
+                                    size=cfg["clients_per_round"],
+                                    replace=False).tolist()
+
+        # Collect client updates
+        client_states, client_sizes = [], []
+        for cid in participants:
+            state = client_update(
+                model_state=global_state,
+                dataset=train_ds,
+                indices=partition[cid],
+                epochs=cfg["local_epochs"],
+                batch_size=cfg["batch_size"],
+                lr=cfg["learning_rate"],
+                momentum=cfg["momentum"],
+                device=device,
+            )
+            client_states.append(state)
+            client_sizes.append(len(partition[cid]))
+
+        # Aggregate (Week 1 = FedAvg only)
+        if cfg["defense"] == "fedavg":
+            global_state = fedavg_aggregate(client_states, client_sizes)
+        else:
+            raise NotImplementedError(
+                f"Defense '{cfg['defense']}' not implemented yet — "
+                "add in Week 2."
+            )
+
+        # Evaluate every 5 rounds (and always the last round)
+        if rnd % 5 == 0 or rnd == total_rounds:
+            acc = evaluate(global_state, test_loader, device)
+            dt = time.time() - t0
+            print(f"  Round {rnd:3d}/{total_rounds}  |  "
+                  f"acc={acc*100:5.2f}%  |  time={dt:.1f}s")
+            round_metrics.append({"round": rnd, "acc": acc, "time_s": dt})
+
+    return round_metrics, global_state
+
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--dataset", required=True, choices=["fashion-mnist", "cifar10"])
+    ap.add_argument("--defense", default="fedavg",
+                    choices=["fedavg"])  # extended in later weeks
+    ap.add_argument("--attack", default="none",
+                    choices=["none"])    # extended in later weeks
+    ap.add_argument("--rounds", type=int, default=None,
+                    help="Override the dataset's default round count.")
+    ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument("--config", type=Path,
+                    default=Path("configs/default.yaml"))
+    ap.add_argument("--partition-dir", type=Path, default=Path("partitions"))
+    ap.add_argument("--log-dir", type=Path, default=Path("logs"))
+    args = ap.parse_args()
+
+    with open(args.config) as f:
+        default_cfg = yaml.safe_load(f)
+
+    # Flatten configuration for the run
+    global cfg
+    cfg = {
+        "seed": args.seed,
+        "_dataset_name": args.dataset,
+        "defense": args.defense,
+        "attack": args.attack,
+        "num_clients": default_cfg["federation"]["num_clients"],
+        "clients_per_round": default_cfg["federation"]["clients_per_round"],
+        "local_epochs": default_cfg["training"]["local_epochs"],
+        "batch_size": default_cfg["training"]["batch_size"],
+        "learning_rate": default_cfg["training"]["learning_rate"],
+        "momentum": default_cfg["training"]["momentum"],
+        "rounds": args.rounds or default_cfg["datasets"][args.dataset]["rounds"],
+    }
+
+    set_all_seeds(cfg["seed"])
+    print("Configuration:", json.dumps(cfg, indent=2))
+
+    part_file = args.partition_dir / (
+        f"{args.dataset}_alpha{default_cfg['federation']['dirichlet_alpha']}_"
+        f"n{cfg['num_clients']}.pkl"
+    )
+    if not part_file.exists():
+        raise SystemExit(
+            f"Partition file not found: {part_file}\n"
+            f"Run: python data/partition.py --dataset {args.dataset} --clients 100 --alpha 0.5"
+        )
+    with open(part_file, "rb") as f:
+        partition = pickle.load(f)
+
+    train_ds, test_ds = load_dataset(args.dataset)
+
+    metrics, final_state = run_federation(cfg, partition, train_ds, test_ds)
+
+    # Save results
+    run_id = f"{args.dataset}_{args.defense}_{args.attack}_seed{args.seed}"
+    out_dir = args.log_dir / run_id
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    with open(out_dir / "config.yaml", "w") as f:
+        yaml.dump(cfg, f)
+    with open(out_dir / "metrics.json", "w") as f:
+        json.dump(metrics, f, indent=2)
+    torch.save(final_state, out_dir / "final_model.pt")
+
+    print(f"\nSaved run to: {out_dir}")
+    final_acc = metrics[-1]["acc"] * 100 if metrics else 0.0
+    print(f"Final accuracy: {final_acc:.2f}%")
+
+
+if __name__ == "__main__":
+    main()

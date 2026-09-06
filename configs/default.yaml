@@ -1,0 +1,53 @@
+# Global experimental configuration for KDP-TMA study.
+# Every run reads this file and can override individual keys on the command line.
+
+federation:
+  num_clients: 100
+  clients_per_round: 10
+  dirichlet_alpha: 0.5
+
+training:
+  local_epochs: 2
+  batch_size: 32
+  learning_rate: 0.01
+  momentum: 0.9
+
+datasets:
+  fashion-mnist:
+    rounds: 200
+    model: simple_cnn
+  cifar10:
+    rounds: 150
+    model: resnet18
+
+# KDP-TMA-specific
+kdp:
+  reference_dataset_size_per_class: 100  # 1000 total
+  provenance_hash_algorithm: sha256
+
+tma:
+  trap_dataset_fraction: 0.1
+  trap_seed: 7  # fixed across clients for reproducibility
+
+attacks:
+  malicious_ratios: [0.1, 0.2, 0.3]
+  byzantine:
+    sign_flip: {}
+    gaussian_noise:
+      sigma_multiplier: 10.0
+  backdoor:
+    trigger_shape: "square_4x4"
+    trigger_position: "top_left"
+    poisoned_fraction: 0.5
+    source_class: 6      # F-MNIST: shirt / CIFAR-10: frog
+    target_class: 9      # F-MNIST: ankle boot / CIFAR-10: truck
+
+evaluation:
+  seeds: [42, 123, 2024]
+  metrics:
+    - main_task_accuracy
+    - attack_success_rate
+    - detection_tpr
+    - detection_fpr
+    - communication_bytes
+    - wall_clock_seconds
