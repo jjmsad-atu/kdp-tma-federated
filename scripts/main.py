@@ -1,11 +1,6 @@
 """
 Main experiment entry point.
-
-Week 1 scope: FedAvg baseline on Fashion-MNIST or CIFAR-10 with no attack.
-Later weeks will extend the --defense and --attack switches.
-
-Usage:
-    python scripts/main.py --dataset fashion-mnist --defense fedavg --seed 42
+Supports: FedAvg, Trimmed Mean, Median, Krum, Multi-Krum, FLTrust, FoolsGold.
 """
 import argparse
 import copy
@@ -22,19 +17,21 @@ from torch.utils.data import DataLoader, Subset
 from torchvision import datasets, transforms
 import yaml
 
-# Local imports — assumes running from project root
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from models.simple_cnn import SimpleCNN
 from models.resnet18 import make_resnet18_cifar
 from defenses.fedavg import aggregate as fedavg_aggregate
+from defenses.trimmed_mean import aggregate as trimmed_mean_aggregate
+from defenses.median import aggregate as median_aggregate
+from defenses.krum import aggregate as krum_aggregate
+from defenses.multi_krum import aggregate as multi_krum_aggregate
+from defenses.fltrust import aggregate as fltrust_aggregate
+from defenses.foolsgold import aggregate as foolsgold_aggregate, reset_memory as foolsgold_reset
 
 
-# -----------------------------------------------------------------------------
-# Reproducibility
-# -----------------------------------------------------------------------------
-def set_all_seeds(seed: int):
+def set_all_seeds(seed):
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
@@ -43,46 +40,46 @@ def set_all_seeds(seed: int):
     torch.backends.cudnn.benchmark = False
 
 
-# -----------------------------------------------------------------------------
-# Data
-# -----------------------------------------------------------------------------
 DATA_ROOT = Path("./data_cache")
 
 
-def load_dataset(name: str):
-    """Return (train_ds, test_ds) with standard preprocessing."""
+def load_dataset(name):
     if name == "fashion-mnist":
         transform = transforms.Compose([
             transforms.ToTensor(),
             transforms.Normalize((0.2860,), (0.3530,)),
         ])
-        train = datasets.FashionMNIST(DATA_ROOT, train=True, download=True,
-                                       transform=transform)
-        test = datasets.FashionMNIST(DATA_ROOT, train=False, download=True,
-                                      transform=transform)
+        train = datasets.FashionMNIST(DATA_ROOT, train=True, download=True, transform=transform)
+        test = datasets.FashionMNIST(DATA_ROOT, train=False, download=True, transform=transform)
         return train, test
     if name == "cifar10":
         transform_train = transforms.Compose([
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2470, 0.2435, 0.2616)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
         ])
         transform_test = transforms.Compose([
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2470, 0.2435, 0.2616)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
         ])
-        train = datasets.CIFAR10(DATA_ROOT, train=True, download=True,
-                                  transform=transform_train)
-        test = datasets.CIFAR10(DATA_ROOT, train=False, download=True,
-                                 transform=transform_test)
+        train = datasets.CIFAR10(DATA_ROOT, train=True, download=True, transform=transform_train)
+        test = datasets.CIFAR10(DATA_ROOT, train=False, download=True, transform=transform_test)
         return train, test
-    raise ValueError(f"Unknown dataset: {name}")
+    raise ValueError(name)
 
 
-def build_model(dataset_name: str) -> nn.Module:
+def load_reference_dataset(dataset_name, partition_dir):
+    ref_path = partition_dir / f"{dataset_name}_reference_indices.pkl"
+    if not ref_path.exists():
+        return None
+    with open(ref_path, "rb") as f:
+        ref_indices = pickle.load(f)
+    train_ds, _ = load_dataset(dataset_name)
+    return Subset(train_ds, ref_indices)
+
+
+def build_model(dataset_name):
     if dataset_name == "fashion-mnist":
         return SimpleCNN(num_classes=10)
     if dataset_name == "cifar10":
@@ -90,38 +87,25 @@ def build_model(dataset_name: str) -> nn.Module:
     raise ValueError(dataset_name)
 
 
-# -----------------------------------------------------------------------------
-# Local training on one client
-# -----------------------------------------------------------------------------
-def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum,
-                  device):
-    """Run local SGD on one client and return the resulting state_dict."""
+def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum, device):
     model = build_model(cfg["_dataset_name"])
     model.load_state_dict(model_state)
     model.to(device)
     model.train()
-
     subset = Subset(dataset, indices)
-    loader = DataLoader(subset, batch_size=batch_size, shuffle=True,
-                        num_workers=0, drop_last=False)
+    loader = DataLoader(subset, batch_size=batch_size, shuffle=True, num_workers=0)
     opt = torch.optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     criterion = nn.CrossEntropyLoss()
-
     for _ in range(epochs):
         for xb, yb in loader:
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
-            out = model(xb)
-            loss = criterion(out, yb)
+            loss = criterion(model(xb), yb)
             loss.backward()
             opt.step()
-
     return {k: v.detach().cpu() for k, v in model.state_dict().items()}
 
 
-# -----------------------------------------------------------------------------
-# Evaluation
-# -----------------------------------------------------------------------------
 @torch.no_grad()
 def evaluate(model_state, test_loader, device):
     model = build_model(cfg["_dataset_name"])
@@ -137,12 +121,11 @@ def evaluate(model_state, test_loader, device):
     return correct / total
 
 
-# -----------------------------------------------------------------------------
-# Federated loop
-# -----------------------------------------------------------------------------
-def run_federation(cfg, partition, train_ds, test_ds):
+def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
+    if reference_dataset is not None:
+        print(f"Reference dataset size: {len(reference_dataset)}")
 
     global_model = build_model(cfg["_dataset_name"]).to(device)
     global_state = {k: v.detach().cpu() for k, v in global_model.state_dict().items()}
@@ -152,18 +135,17 @@ def run_federation(cfg, partition, train_ds, test_ds):
     client_ids = list(partition.keys())
     round_metrics = []
     rng = np.random.default_rng(cfg["seed"])
-
     total_rounds = cfg["rounds"]
+
+    if cfg["defense"] == "foolsgold":
+        foolsgold_reset()
+        print("FoolsGold memory reset for this run.")
     print(f"Starting federated training: {total_rounds} rounds")
 
     for rnd in range(1, total_rounds + 1):
         t0 = time.time()
-        # Sample participating clients
-        participants = rng.choice(client_ids,
-                                    size=cfg["clients_per_round"],
-                                    replace=False).tolist()
+        participants = rng.choice(client_ids, size=cfg["clients_per_round"], replace=False).tolist()
 
-        # Collect client updates
         client_states, client_sizes = [], []
         for cid in participants:
             state = client_update(
@@ -179,41 +161,54 @@ def run_federation(cfg, partition, train_ds, test_ds):
             client_states.append(state)
             client_sizes.append(len(partition[cid]))
 
-        # Aggregate (Week 1 = FedAvg only)
         if cfg["defense"] == "fedavg":
             global_state = fedavg_aggregate(client_states, client_sizes)
-        else:
-            raise NotImplementedError(
-                f"Defense '{cfg['defense']}' not implemented yet — "
-                "add in Week 2."
+        elif cfg["defense"] == "trimmed_mean":
+            global_state = trimmed_mean_aggregate(client_states, client_sizes, trim_ratio=0.2)
+        elif cfg["defense"] == "median":
+            global_state = median_aggregate(client_states, client_sizes)
+        elif cfg["defense"] == "krum":
+            global_state = krum_aggregate(client_states, client_sizes, num_byzantine=2)
+        elif cfg["defense"] == "multi_krum":
+            global_state = multi_krum_aggregate(client_states, client_sizes, num_byzantine=2)
+        elif cfg["defense"] == "fltrust":
+            global_state = fltrust_aggregate(
+                client_states, client_sizes,
+                global_state=global_state,
+                reference_dataset=reference_dataset,
+                build_model_fn=lambda: build_model(cfg["_dataset_name"]),
+                device=device,
+                lr=cfg["learning_rate"],
+                momentum=cfg["momentum"],
             )
+        elif cfg["defense"] == "foolsgold":
+            global_state = foolsgold_aggregate(
+                client_states, client_sizes,
+                client_ids=participants,
+                global_state=global_state,
+            )
+        else:
+            raise ValueError(f"Unknown defense: {cfg['defense']}")
 
-        # Evaluate every 5 rounds (and always the last round)
         if rnd % 5 == 0 or rnd == total_rounds:
             acc = evaluate(global_state, test_loader, device)
             dt = time.time() - t0
-            print(f"  Round {rnd:3d}/{total_rounds}  |  "
-                  f"acc={acc*100:5.2f}%  |  time={dt:.1f}s")
+            print(f"  Round {rnd:3d}/{total_rounds}  |  acc={acc*100:5.2f}%  |  time={dt:.1f}s")
             round_metrics.append({"round": rnd, "acc": acc, "time_s": dt})
 
     return round_metrics, global_state
 
 
-# -----------------------------------------------------------------------------
-# Main
-# -----------------------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--dataset", required=True, choices=["fashion-mnist", "cifar10"])
     ap.add_argument("--defense", default="fedavg",
-                    choices=["fedavg"])  # extended in later weeks
-    ap.add_argument("--attack", default="none",
-                    choices=["none"])    # extended in later weeks
-    ap.add_argument("--rounds", type=int, default=None,
-                    help="Override the dataset's default round count.")
+                    choices=["fedavg", "trimmed_mean", "median", "krum",
+                             "multi_krum", "fltrust", "foolsgold"])
+    ap.add_argument("--attack", default="none", choices=["none"])
+    ap.add_argument("--rounds", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
-    ap.add_argument("--config", type=Path,
-                    default=Path("configs/default.yaml"))
+    ap.add_argument("--config", type=Path, default=Path("configs/default.yaml"))
     ap.add_argument("--partition-dir", type=Path, default=Path("partitions"))
     ap.add_argument("--log-dir", type=Path, default=Path("logs"))
     args = ap.parse_args()
@@ -221,7 +216,6 @@ def main():
     with open(args.config) as f:
         default_cfg = yaml.safe_load(f)
 
-    # Flatten configuration for the run
     global cfg
     cfg = {
         "seed": args.seed,
@@ -245,18 +239,14 @@ def main():
         f"n{cfg['num_clients']}.pkl"
     )
     if not part_file.exists():
-        raise SystemExit(
-            f"Partition file not found: {part_file}\n"
-            f"Run: python data/partition.py --dataset {args.dataset} --clients 100 --alpha 0.5"
-        )
+        raise SystemExit(f"Partition file not found: {part_file}")
     with open(part_file, "rb") as f:
         partition = pickle.load(f)
 
     train_ds, test_ds = load_dataset(args.dataset)
+    reference_dataset = load_reference_dataset(args.dataset, args.partition_dir)
+    metrics, final_state = run_federation(cfg, partition, train_ds, test_ds, reference_dataset)
 
-    metrics, final_state = run_federation(cfg, partition, train_ds, test_ds)
-
-    # Save results
     run_id = f"{args.dataset}_{args.defense}_{args.attack}_seed{args.seed}"
     out_dir = args.log_dir / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
