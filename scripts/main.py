@@ -1,6 +1,7 @@
 """
 Main experiment entry point.
 Supports: FedAvg, Trimmed Mean, Median, Krum, Multi-Krum, FLTrust, FoolsGold.
+Attacks: none, sign_flip.
 """
 import argparse
 import copy
@@ -29,6 +30,8 @@ from defenses.krum import aggregate as krum_aggregate
 from defenses.multi_krum import aggregate as multi_krum_aggregate
 from defenses.fltrust import aggregate as fltrust_aggregate
 from defenses.foolsgold import aggregate as foolsgold_aggregate, reset_memory as foolsgold_reset
+from attacks.sign_flip import apply as sign_flip_attack
+from attacks.gaussian_noise import apply as gaussian_noise_attack
 
 
 def set_all_seeds(seed):
@@ -87,6 +90,14 @@ def build_model(dataset_name):
     raise ValueError(dataset_name)
 
 
+def select_malicious_clients(num_clients, ratio, seed):
+    """Deterministically select which clients are malicious (once per run)."""
+    rng = np.random.default_rng(seed + 12345)
+    num_malicious = int(ratio * num_clients)
+    malicious = rng.choice(num_clients, size=num_malicious, replace=False)
+    return set(malicious.tolist())
+
+
 def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum, device):
     model = build_model(cfg["_dataset_name"])
     model.load_state_dict(model_state)
@@ -127,6 +138,15 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
     if reference_dataset is not None:
         print(f"Reference dataset size: {len(reference_dataset)}")
 
+    # Select malicious clients (deterministic given seed)
+    malicious = set()
+    if cfg["attack"] != "none" and cfg["malicious_ratio"] > 0:
+        malicious = select_malicious_clients(
+            cfg["num_clients"], cfg["malicious_ratio"], cfg["seed"]
+        )
+        print(f"Attack: {cfg['attack']}, malicious clients: {len(malicious)} "
+              f"({cfg['malicious_ratio']*100:.0f}%)")
+
     global_model = build_model(cfg["_dataset_name"]).to(device)
     global_state = {k: v.detach().cpu() for k, v in global_model.state_dict().items()}
 
@@ -148,6 +168,7 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
 
         client_states, client_sizes = [], []
         for cid in participants:
+            # Honest training first
             state = client_update(
                 model_state=global_state,
                 dataset=train_ds,
@@ -158,6 +179,14 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
                 momentum=cfg["momentum"],
                 device=device,
             )
+
+            # If this client is malicious, apply the attack
+            if cid in malicious:
+                if cfg["attack"] == "sign_flip":
+                    state = sign_flip_attack(state, global_state, scale=1.0)
+                elif cfg["attack"] == "gaussian_noise":
+                    state = gaussian_noise_attack(state, global_state, sigma_multiplier=10.0)
+
             client_states.append(state)
             client_sizes.append(len(partition[cid]))
 
@@ -205,7 +234,9 @@ def main():
     ap.add_argument("--defense", default="fedavg",
                     choices=["fedavg", "trimmed_mean", "median", "krum",
                              "multi_krum", "fltrust", "foolsgold"])
-    ap.add_argument("--attack", default="none", choices=["none"])
+    ap.add_argument("--attack", default="none", choices=["none", "sign_flip", "gaussian_noise"])
+    ap.add_argument("--malicious-ratio", type=float, default=0.0,
+                    help="Fraction of malicious clients (0.0 to 0.5).")
     ap.add_argument("--rounds", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--config", type=Path, default=Path("configs/default.yaml"))
@@ -222,6 +253,7 @@ def main():
         "_dataset_name": args.dataset,
         "defense": args.defense,
         "attack": args.attack,
+        "malicious_ratio": args.malicious_ratio,
         "num_clients": default_cfg["federation"]["num_clients"],
         "clients_per_round": default_cfg["federation"]["clients_per_round"],
         "local_epochs": default_cfg["training"]["local_epochs"],
@@ -247,7 +279,9 @@ def main():
     reference_dataset = load_reference_dataset(args.dataset, args.partition_dir)
     metrics, final_state = run_federation(cfg, partition, train_ds, test_ds, reference_dataset)
 
-    run_id = f"{args.dataset}_{args.defense}_{args.attack}_seed{args.seed}"
+    # Build run_id including attack info
+    ratio_str = f"_r{int(cfg['malicious_ratio']*100)}" if cfg["attack"] != "none" else ""
+    run_id = f"{args.dataset}_{args.defense}_{args.attack}{ratio_str}_seed{args.seed}"
     out_dir = args.log_dir / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
 
