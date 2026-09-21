@@ -1,7 +1,7 @@
 """
 Main experiment entry point.
 Supports: FedAvg, Trimmed Mean, Median, Krum, Multi-Krum, FLTrust, FoolsGold.
-Attacks: none, sign_flip.
+Attacks: none, sign_flip, gaussian_noise, backdoor.
 """
 import argparse
 import copy
@@ -32,6 +32,7 @@ from defenses.fltrust import aggregate as fltrust_aggregate
 from defenses.foolsgold import aggregate as foolsgold_aggregate, reset_memory as foolsgold_reset
 from attacks.sign_flip import apply as sign_flip_attack
 from attacks.gaussian_noise import apply as gaussian_noise_attack
+from attacks.backdoor import poison_batch, BackdoorTestDataset
 
 
 def set_all_seeds(seed):
@@ -91,14 +92,15 @@ def build_model(dataset_name):
 
 
 def select_malicious_clients(num_clients, ratio, seed):
-    """Deterministically select which clients are malicious (once per run)."""
     rng = np.random.default_rng(seed + 12345)
     num_malicious = int(ratio * num_clients)
     malicious = rng.choice(num_clients, size=num_malicious, replace=False)
     return set(malicious.tolist())
 
 
-def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum, device):
+def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentum, device,
+                  is_malicious=False, attack_type="none"):
+    """Train a client. If malicious + backdoor attack, poison training batches."""
     model = build_model(cfg["_dataset_name"])
     model.load_state_dict(model_state)
     model.to(device)
@@ -109,6 +111,9 @@ def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentu
     criterion = nn.CrossEntropyLoss()
     for _ in range(epochs):
         for xb, yb in loader:
+            # If backdoor attack: poison this batch
+            if is_malicious and attack_type == "backdoor":
+                xb, yb = poison_batch(xb, yb, source_class=6, target_class=9, poison_ratio=0.5)
             xb, yb = xb.to(device), yb.to(device)
             opt.zero_grad()
             loss = criterion(model(xb), yb)
@@ -119,6 +124,7 @@ def client_update(model_state, dataset, indices, epochs, batch_size, lr, momentu
 
 @torch.no_grad()
 def evaluate(model_state, test_loader, device):
+    """Evaluate main task accuracy (MTA) on clean test set."""
     model = build_model(cfg["_dataset_name"])
     model.load_state_dict(model_state)
     model.to(device)
@@ -132,13 +138,30 @@ def evaluate(model_state, test_loader, device):
     return correct / total
 
 
+@torch.no_grad()
+def evaluate_asr(model_state, backdoor_loader, device, target_class=9):
+    """Evaluate Attack Success Rate (ASR) on poisoned test set.
+    ASR = % of triggered samples classified as target_class."""
+    model = build_model(cfg["_dataset_name"])
+    model.load_state_dict(model_state)
+    model.to(device)
+    model.eval()
+    success = total = 0
+    for xb, yb in backdoor_loader:
+        xb = xb.to(device)
+        pred = model(xb).argmax(dim=1)
+        success += (pred == target_class).sum().item()
+        total += yb.size(0)
+    return success / total if total > 0 else 0.0
+
+
 def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     if reference_dataset is not None:
         print(f"Reference dataset size: {len(reference_dataset)}")
 
-    # Select malicious clients (deterministic given seed)
+    # Select malicious clients
     malicious = set()
     if cfg["attack"] != "none" and cfg["malicious_ratio"] > 0:
         malicious = select_malicious_clients(
@@ -151,6 +174,13 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
     global_state = {k: v.detach().cpu() for k, v in global_model.state_dict().items()}
 
     test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=2)
+
+    # For backdoor attack, build a test set to measure ASR
+    backdoor_loader = None
+    if cfg["attack"] == "backdoor":
+        backdoor_test = BackdoorTestDataset(test_ds, source_class=6, target_class=9)
+        backdoor_loader = DataLoader(backdoor_test, batch_size=256, shuffle=False, num_workers=2)
+        print(f"Backdoor test size (source class 6): {len(backdoor_test)}")
 
     client_ids = list(partition.keys())
     round_metrics = []
@@ -168,7 +198,8 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
 
         client_states, client_sizes = [], []
         for cid in participants:
-            # Honest training first
+            is_mal = cid in malicious
+            # Honest training (with poisoned batches if backdoor)
             state = client_update(
                 model_state=global_state,
                 dataset=train_ds,
@@ -178,10 +209,12 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
                 lr=cfg["learning_rate"],
                 momentum=cfg["momentum"],
                 device=device,
+                is_malicious=is_mal,
+                attack_type=cfg["attack"],
             )
 
-            # If this client is malicious, apply the attack
-            if cid in malicious:
+            # Apply post-training attacks (sign_flip, gaussian_noise)
+            if is_mal:
                 if cfg["attack"] == "sign_flip":
                     state = sign_flip_attack(state, global_state, scale=1.0)
                 elif cfg["attack"] == "gaussian_noise":
@@ -190,6 +223,7 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
             client_states.append(state)
             client_sizes.append(len(partition[cid]))
 
+        # Aggregate
         if cfg["defense"] == "fedavg":
             global_state = fedavg_aggregate(client_states, client_sizes)
         elif cfg["defense"] == "trimmed_mean":
@@ -222,8 +256,15 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
         if rnd % 5 == 0 or rnd == total_rounds:
             acc = evaluate(global_state, test_loader, device)
             dt = time.time() - t0
-            print(f"  Round {rnd:3d}/{total_rounds}  |  acc={acc*100:5.2f}%  |  time={dt:.1f}s")
-            round_metrics.append({"round": rnd, "acc": acc, "time_s": dt})
+            metric = {"round": rnd, "acc": acc, "time_s": dt}
+            if backdoor_loader is not None:
+                asr = evaluate_asr(global_state, backdoor_loader, device, target_class=9)
+                metric["asr"] = asr
+                print(f"  Round {rnd:3d}/{total_rounds}  |  MTA={acc*100:5.2f}%  |  "
+                      f"ASR={asr*100:5.2f}%  |  time={dt:.1f}s")
+            else:
+                print(f"  Round {rnd:3d}/{total_rounds}  |  acc={acc*100:5.2f}%  |  time={dt:.1f}s")
+            round_metrics.append(metric)
 
     return round_metrics, global_state
 
@@ -234,9 +275,9 @@ def main():
     ap.add_argument("--defense", default="fedavg",
                     choices=["fedavg", "trimmed_mean", "median", "krum",
                              "multi_krum", "fltrust", "foolsgold"])
-    ap.add_argument("--attack", default="none", choices=["none", "sign_flip", "gaussian_noise"])
-    ap.add_argument("--malicious-ratio", type=float, default=0.0,
-                    help="Fraction of malicious clients (0.0 to 0.5).")
+    ap.add_argument("--attack", default="none",
+                    choices=["none", "sign_flip", "gaussian_noise", "backdoor"])
+    ap.add_argument("--malicious-ratio", type=float, default=0.0)
     ap.add_argument("--rounds", type=int, default=None)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--config", type=Path, default=Path("configs/default.yaml"))
@@ -267,8 +308,8 @@ def main():
     print("Configuration:", json.dumps(cfg, indent=2))
 
     part_file = args.partition_dir / (
-        f"{args.dataset}_alpha{default_cfg['federation']['dirichlet_alpha']}_"
-        f"n{cfg['num_clients']}.pkl"
+        f'{args.dataset}_alpha{default_cfg["federation"]["dirichlet_alpha"]}_'
+        f'n{cfg["num_clients"]}.pkl'
     )
     if not part_file.exists():
         raise SystemExit(f"Partition file not found: {part_file}")
@@ -279,8 +320,7 @@ def main():
     reference_dataset = load_reference_dataset(args.dataset, args.partition_dir)
     metrics, final_state = run_federation(cfg, partition, train_ds, test_ds, reference_dataset)
 
-    # Build run_id including attack info
-    ratio_str = f"_r{int(cfg['malicious_ratio']*100)}" if cfg["attack"] != "none" else ""
+    ratio_str = f"_r{int(cfg["malicious_ratio"]*100)}" if cfg["attack"] != "none" else ""
     run_id = f"{args.dataset}_{args.defense}_{args.attack}{ratio_str}_seed{args.seed}"
     out_dir = args.log_dir / run_id
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -293,7 +333,9 @@ def main():
 
     print(f"\nSaved run to: {out_dir}")
     final_acc = metrics[-1]["acc"] * 100 if metrics else 0.0
-    print(f"Final accuracy: {final_acc:.2f}%")
+    print(f"Final MTA: {final_acc:.2f}%")
+    if metrics and "asr" in metrics[-1]:
+        print(f"Final ASR: {metrics[-1]["asr"]*100:.2f}%")
 
 
 if __name__ == "__main__":
