@@ -32,6 +32,7 @@ from defenses.multi_krum import aggregate as multi_krum_aggregate
 from defenses.fltrust import aggregate as fltrust_aggregate
 from defenses.foolsgold import aggregate as foolsgold_aggregate, reset_memory as foolsgold_reset
 from defenses.kdp import aggregate as kdp_aggregate, build_registry as kdp_build_registry, compute_data_hash as kdp_compute_hash
+from defenses.tma import aggregate as tma_aggregate, create_trap_dataset as tma_create_traps, pretrain_traps as tma_pretrain
 from attacks.sign_flip import apply as sign_flip_attack
 from attacks.gaussian_noise import apply as gaussian_noise_attack
 from attacks.backdoor import poison_batch, BackdoorTestDataset
@@ -193,6 +194,22 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
               round(time.time()-t_enroll, 1), "s")
 
     global_model = build_model(cfg["_dataset_name"]).to(device)
+
+    # TMA: create traps and pre-train
+    trap_dataset = None
+    baseline_trap_acc = None
+    if cfg["defense"] == "tma":
+        print("Building TMA traps (enrollment phase)...")
+        t_enroll = time.time()
+        trap_dataset = tma_create_traps(train_ds, num_traps=100,
+                                         num_classes=10, seed=cfg["seed"])
+        pretrained_state, baseline_trap_acc = tma_pretrain(
+            global_model, trap_dataset, device, epochs=30, lr=0.01
+        )
+        global_model.load_state_dict(pretrained_state)
+        print("  Pretrained on 100 traps, baseline_acc =", round(baseline_trap_acc, 3),
+              "(", round(time.time()-t_enroll, 1), "s)")
+
     global_state = {k: v.detach().cpu() for k, v in global_model.state_dict().items()}
 
     test_loader = DataLoader(test_ds, batch_size=256, shuffle=False, num_workers=2)
@@ -279,6 +296,15 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
                 client_hashes=client_hashes,
                 registry=kdp_registry,
             )
+        elif cfg["defense"] == "tma":
+            global_state = tma_aggregate(
+                client_states, client_sizes,
+                trap_dataset=trap_dataset,
+                baseline_trap_acc=baseline_trap_acc,
+                build_model_fn=lambda: build_model(cfg["_dataset_name"]),
+                device=device,
+                threshold_ratio=0.5,
+            )
         else:
             raise ValueError("Unknown defense: " + cfg["defense"])
 
@@ -305,7 +331,7 @@ def main():
     ap.add_argument("--dataset", required=True, choices=["fashion-mnist", "cifar10"])
     ap.add_argument("--defense", default="fedavg",
                     choices=["fedavg", "trimmed_mean", "median", "krum",
-                             "multi_krum", "fltrust", "foolsgold", "kdp"])
+                             "multi_krum", "fltrust", "foolsgold", "kdp", "tma"])
     ap.add_argument("--attack", default="none",
                     choices=["none", "sign_flip", "gaussian_noise", "backdoor"])
     ap.add_argument("--malicious-ratio", type=float, default=0.0)
