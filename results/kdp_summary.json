@@ -1,0 +1,38 @@
+{
+  "fashion-mnist_kdp_backdoor_r10_seed123": {
+    "MTA": 83.7,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r10_seed2024": {
+    "MTA": 84.32,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r10_seed42": {
+    "MTA": 84.84,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r20_seed123": {
+    "MTA": 81.66,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r20_seed2024": {
+    "MTA": 83.47,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r20_seed42": {
+    "MTA": 83.85,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r30_seed123": {
+    "MTA": 83.43,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r30_seed2024": {
+    "MTA": 82.48,
+    "ASR": 0.0
+  },
+  "fashion-mnist_kdp_backdoor_r30_seed42": {
+    "MTA": 84.82,
+    "ASR": 0.0
+  }
+}

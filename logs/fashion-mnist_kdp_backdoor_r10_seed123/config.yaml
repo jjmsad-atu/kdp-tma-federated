@@ -1,0 +1,12 @@
+_dataset_name: fashion-mnist
+attack: backdoor
+batch_size: 32
+clients_per_round: 10
+defense: kdp
+learning_rate: 0.01
+local_epochs: 2
+malicious_ratio: 0.1
+momentum: 0.9
+num_clients: 100
+rounds: 20
+seed: 123
