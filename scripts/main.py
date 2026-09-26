@@ -76,6 +76,27 @@ def load_dataset(name):
     raise ValueError(name)
 
 
+def load_hash_dataset(name):
+    """Load dataset with DETERMINISTIC transforms only (for hashing).
+    Excludes RandomCrop/Flip augmentations that would corrupt hash consistency.
+    """
+    if name == "fashion-mnist":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.2860,), (0.3530,)),
+        ])
+        train = datasets.FashionMNIST(DATA_ROOT, train=True, download=True, transform=transform)
+        return train
+    if name == "cifar10":
+        transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465), (0.2470, 0.2435, 0.2616)),
+        ])
+        train = datasets.CIFAR10(DATA_ROOT, train=True, download=True, transform=transform)
+        return train
+    raise ValueError(name)
+
+
 def load_reference_dataset(dataset_name, partition_dir):
     ref_path = partition_dir / (dataset_name + "_reference_indices.pkl")
     if not ref_path.exists():
@@ -186,10 +207,13 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
               "(", int(cfg["malicious_ratio"]*100), "%)")
 
     kdp_registry = None
+    kdp_hash_ds = None
     if cfg["defense"] == "kdp":
         print("Building KDP registry (enrollment phase)...")
         t_enroll = time.time()
-        kdp_registry = kdp_build_registry(partition, train_ds)
+        # Use deterministic dataset for hashing (no random augmentation)
+        kdp_hash_ds = load_hash_dataset(cfg["_dataset_name"])
+        kdp_registry = kdp_build_registry(partition, kdp_hash_ds)
         print("  Registered", len(kdp_registry), "clients in",
               round(time.time()-t_enroll, 1), "s")
 
@@ -260,7 +284,7 @@ def run_federation(cfg, partition, train_ds, test_ds, reference_dataset=None):
             client_sizes.append(len(partition[cid]))
 
             if cfg["defense"] == "kdp":
-                h = compute_client_current_hash(train_ds, partition[cid], is_mal, cfg["attack"])
+                h = compute_client_current_hash(kdp_hash_ds, partition[cid], is_mal, cfg["attack"])
                 client_hashes.append(h)
 
         if cfg["defense"] == "fedavg":
