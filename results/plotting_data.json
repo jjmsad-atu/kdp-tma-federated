@@ -1,0 +1,128 @@
+{
+  "kdp_fashion_mnist": {
+    "r10_s123": {
+      "MTA": 83.7,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r10_s2024": {
+      "MTA": 84.32,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r10_s42": {
+      "MTA": 84.84,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r20_s123": {
+      "MTA": 81.66,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r20_s2024": {
+      "MTA": 83.47,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r20_s42": {
+      "MTA": 83.85,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r30_s123": {
+      "MTA": 83.43,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r30_s2024": {
+      "MTA": 82.48,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "r30_s42": {
+      "MTA": 84.82,
+      "ASR": 0.0,
+      "rounds": 21
+    }
+  },
+  "kdp_cifar10": {
+    "r10_s123": {
+      "MTA": 51.14,
+      "ASR": 0.2,
+      "rounds": 51
+    },
+    "r10_s42": {
+      "MTA": 58.9,
+      "ASR": 0.4,
+      "rounds": 51
+    },
+    "r20_s123": {
+      "MTA": 54.57,
+      "ASR": 0.3,
+      "rounds": 51
+    },
+    "r20_s2024": {
+      "MTA": 56.57,
+      "ASR": 0.9,
+      "rounds": 51
+    },
+    "r20_s42": {
+      "MTA": 49.36,
+      "ASR": 0.2,
+      "rounds": 51
+    },
+    "r30_s123": {
+      "MTA": 55.79,
+      "ASR": 0.5,
+      "rounds": 51
+    },
+    "r30_s2024": {
+      "MTA": 55.56,
+      "ASR": 0.3,
+      "rounds": 51
+    },
+    "r30_s42": {
+      "MTA": 54.91,
+      "ASR": 0.1,
+      "rounds": 51
+    }
+  },
+  "baselines_fashion_mnist": {
+    "fedavg": {
+      "MTA": 84.55,
+      "ASR": 99.6,
+      "rounds": 21
+    },
+    "fltrust": {
+      "MTA": 80.19,
+      "ASR": 73.1,
+      "rounds": 21
+    },
+    "foolsgold": {
+      "MTA": 85.72,
+      "ASR": 93.3,
+      "rounds": 21
+    },
+    "krum": {
+      "MTA": 73.64,
+      "ASR": 0.0,
+      "rounds": 21
+    },
+    "median": {
+      "MTA": 80.94,
+      "ASR": 1.8,
+      "rounds": 21
+    },
+    "multi_krum": {
+      "MTA": 80.01,
+      "ASR": 22.5,
+      "rounds": 21
+    },
+    "trimmed_mean": {
+      "MTA": 81.64,
+      "ASR": 68.7,
+      "rounds": 21
+    }
+  }
+}

@@ -1,222 +1,267 @@
 {
   "cifar10_fedavg_backdoor_r20_seed42": {
     "MTA": 38.45,
-    "ASR": 74.6
+    "ASR": 74.6,
+    "rounds": 21
   },
   "cifar10_fedavg_backdoor_r20_seed42_50rounds": {
     "MTA": 57.22,
-    "ASR": 90.6
+    "ASR": 90.6,
+    "rounds": 51
   },
   "cifar10_fedavg_none_seed42": {
     "MTA": 76.79,
-    "ASR": null
-  },
-  "cifar10_kdp_backdoor_r10_seed123": {
-    "MTA": 51.14,
-    "ASR": 0.2
+    "ASR": null,
+    "rounds": 151
   },
   "cifar10_kdp_backdoor_r10_seed123_50rounds": {
     "MTA": 51.14,
-    "ASR": 0.2
-  },
-  "cifar10_kdp_backdoor_r10_seed42": {
-    "MTA": 58.9,
-    "ASR": 0.4
+    "ASR": 0.2,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r10_seed42_50rounds": {
     "MTA": 58.9,
-    "ASR": 0.4
+    "ASR": 0.4,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r20_seed123_50rounds": {
     "MTA": 54.57,
-    "ASR": 0.3
+    "ASR": 0.3,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r20_seed2024_50rounds": {
     "MTA": 56.57,
-    "ASR": 0.9
+    "ASR": 0.9,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r20_seed42": {
     "MTA": 37.89,
-    "ASR": 89.5
+    "ASR": 89.5,
+    "rounds": 21
   },
   "cifar10_kdp_backdoor_r20_seed42_50rounds": {
     "MTA": 49.36,
-    "ASR": 0.2
+    "ASR": 0.2,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r20_seed42_postfix": {
     "MTA": 36.05,
-    "ASR": 1.3
+    "ASR": 1.3,
+    "rounds": 11
   },
   "cifar10_kdp_backdoor_r20_seed42_test10rounds": {
     "MTA": 35.29,
-    "ASR": 32.7
+    "ASR": 32.7,
+    "rounds": 11
   },
   "cifar10_kdp_backdoor_r30_seed123_50rounds": {
     "MTA": 55.79,
-    "ASR": 0.5
+    "ASR": 0.5,
+    "rounds": 51
   },
-  "cifar10_kdp_backdoor_r30_seed2024": {
+  "cifar10_kdp_backdoor_r30_seed2024_50rounds": {
     "MTA": 55.56,
-    "ASR": 0.3
+    "ASR": 0.3,
+    "rounds": 51
   },
   "cifar10_kdp_backdoor_r30_seed42": {
     "MTA": 37.15,
-    "ASR": 69.7
+    "ASR": 69.7,
+    "rounds": 21
   },
   "cifar10_kdp_backdoor_r30_seed42_50rounds": {
     "MTA": 54.91,
-    "ASR": 0.1
+    "ASR": 0.1,
+    "rounds": 51
   },
   "fashion-mnist_fedavg_backdoor_r20_seed42": {
     "MTA": 84.55,
-    "ASR": 99.6
+    "ASR": 99.6,
+    "rounds": 21
   },
   "fashion-mnist_fedavg_gaussian_noise_r20_seed42": {
     "MTA": 10.0,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_fedavg_none_seed42": {
     "MTA": 91.3,
-    "ASR": null
+    "ASR": null,
+    "rounds": 201
   },
   "fashion-mnist_fedavg_sign_flip_r20_seed42": {
     "MTA": 76.87,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_fltrust_backdoor_r20_seed42": {
     "MTA": 80.19,
-    "ASR": 73.1
+    "ASR": 73.1,
+    "rounds": 21
   },
   "fashion-mnist_fltrust_gaussian_noise_r20_seed42": {
     "MTA": 80.23,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_fltrust_none_seed42": {
     "MTA": 80.18,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_fltrust_sign_flip_r20_seed42": {
     "MTA": 80.59,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_foolsgold_backdoor_r20_seed42": {
     "MTA": 85.72,
-    "ASR": 93.3
+    "ASR": 93.3,
+    "rounds": 21
   },
   "fashion-mnist_foolsgold_gaussian_noise_r20_seed42": {
     "MTA": 10.0,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_foolsgold_none_seed42": {
     "MTA": 83.99,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_foolsgold_sign_flip_r20_seed42": {
     "MTA": 68.06,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r10_seed123": {
     "MTA": 83.7,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r10_seed2024": {
     "MTA": 84.32,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r10_seed42": {
     "MTA": 84.84,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r20_seed123": {
     "MTA": 81.66,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r20_seed2024": {
     "MTA": 83.47,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r20_seed42": {
     "MTA": 83.85,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r30_seed123": {
     "MTA": 83.43,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r30_seed2024": {
     "MTA": 82.48,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_kdp_backdoor_r30_seed42": {
     "MTA": 84.82,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_krum_backdoor_r20_seed42": {
     "MTA": 73.64,
-    "ASR": 0.0
+    "ASR": 0.0,
+    "rounds": 21
   },
   "fashion-mnist_krum_gaussian_noise_r20_seed42": {
     "MTA": 68.19,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_krum_none_seed42": {
     "MTA": 68.9,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_krum_sign_flip_r20_seed42": {
     "MTA": 66.31,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_median_backdoor_r20_seed42": {
     "MTA": 80.94,
-    "ASR": 1.8
+    "ASR": 1.8,
+    "rounds": 21
   },
   "fashion-mnist_median_gaussian_noise_r20_seed42": {
     "MTA": 78.86,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_median_none_seed42": {
     "MTA": 81.89,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_median_sign_flip_r20_seed42": {
     "MTA": 77.92,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_multi_krum_backdoor_r20_seed42": {
     "MTA": 80.01,
-    "ASR": 22.5
+    "ASR": 22.5,
+    "rounds": 21
   },
   "fashion-mnist_multi_krum_gaussian_noise_r20_seed42": {
     "MTA": 10.0,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_multi_krum_none_seed42": {
     "MTA": 79.36,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_multi_krum_sign_flip_r20_seed42": {
     "MTA": 79.04,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_tma_sign_flip_r20_seed42": {
     "MTA": 10.0,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_trimmed_mean_backdoor_r20_seed42": {
     "MTA": 81.64,
-    "ASR": 68.7
+    "ASR": 68.7,
+    "rounds": 21
   },
   "fashion-mnist_trimmed_mean_gaussian_noise_r20_seed42": {
     "MTA": 78.43,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_trimmed_mean_none_seed42": {
     "MTA": 82.29,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   },
   "fashion-mnist_trimmed_mean_sign_flip_r20_seed42": {
     "MTA": 77.71,
-    "ASR": null
+    "ASR": null,
+    "rounds": 21
   }
 }
