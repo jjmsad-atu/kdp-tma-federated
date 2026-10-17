@@ -1,0 +1,8 @@
+{
+  "directions_x_priors": 24,
+  "best_trivial_median_recovery": 0.629,
+  "n_best_trivial_recovery_ge_0_7": 9,
+  "n_best_trivial_recovery_lt_0_5": 6,
+  "source_auroc_median": 0.456,
+  "decision": "MIXED: trivial baselines solve some directions only -> inspect per direction"
+}

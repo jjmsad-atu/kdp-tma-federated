@@ -1,0 +1,17 @@
+contam,method,best_baseline,median_method,median_baseline,median_diff,wins,cells,wilcoxon_p
+0.0,bara_fused,autoencoder,0.1,0.472,-0.384,2,24,4.4226646423339844e-05
+0.0,bara_novelty,autoencoder,0.187,0.472,-0.294,1,24,1.633167266845703e-05
+0.0,bara_align,autoencoder,0.088,0.472,-0.394,1,24,1.049041748046875e-05
+0.0,bara_align_head,autoencoder,0.083,0.472,-0.426,2,24,1.633167266845703e-05
+0.01,bara_fused,autoencoder,0.1,0.378,-0.201,1,24,7.62939453125e-05
+0.01,bara_novelty,autoencoder,0.167,0.378,-0.239,1,24,6.389617919921875e-05
+0.01,bara_align,autoencoder,0.067,0.378,-0.305,1,24,1.633167266845703e-05
+0.01,bara_align_head,autoencoder,0.085,0.378,-0.297,2,24,4.4226646423339844e-05
+0.05,bara_fused,iforest,0.131,0.208,-0.033,8,24,0.128027081489563
+0.05,bara_novelty,iforest,0.123,0.208,-0.024,5,24,0.011516094207763672
+0.05,bara_align,iforest,0.108,0.208,-0.071,6,24,0.024863600730895996
+0.05,bara_align_head,iforest,0.091,0.208,-0.021,9,24,0.08392000198364258
+0.1,bara_fused,maha_plain,0.095,0.145,-0.057,9,24,0.060427069664001465
+0.1,bara_novelty,maha_plain,0.101,0.145,-0.056,5,24,0.00020515918731689453
+0.1,bara_align,maha_plain,0.082,0.145,-0.067,4,24,0.005330443382263184
+0.1,bara_align_head,maha_plain,0.145,0.145,-0.024,9,24,0.22918963432312012

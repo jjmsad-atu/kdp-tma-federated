@@ -1,0 +1,254 @@
+[
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "bn_adapt",
+  "directions": 12,
+  "median_recovery": -0.22,
+  "n_recovery_below_half": 12,
+  "n_harmed": 9
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "tent@0.001",
+  "directions": 12,
+  "median_recovery": -0.26,
+  "n_recovery_below_half": 12,
+  "n_harmed": 9
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "shot@0.0001",
+  "directions": 12,
+  "median_recovery": -0.03,
+  "n_recovery_below_half": 12,
+  "n_harmed": 4
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "aad",
+  "directions": 12,
+  "median_recovery": -0.19,
+  "n_recovery_below_half": 12,
+  "n_harmed": 8
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "em_prior",
+  "directions": 12,
+  "median_recovery": -0.0,
+  "n_recovery_below_half": 12,
+  "n_harmed": 0
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "tent_tuned_best",
+  "directions": 12,
+  "median_recovery": -0.23,
+  "n_recovery_below_half": 12,
+  "n_harmed": 9
+ },
+ {
+  "featset": "all",
+  "prior": "0.05",
+  "method": "shot_tuned_best",
+  "directions": 12,
+  "median_recovery": 0.0,
+  "n_recovery_below_half": 12,
+  "n_harmed": 3
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "bn_adapt",
+  "directions": 12,
+  "median_recovery": 0.11,
+  "n_recovery_below_half": 12,
+  "n_harmed": 5
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "tent@0.001",
+  "directions": 12,
+  "median_recovery": 0.11,
+  "n_recovery_below_half": 12,
+  "n_harmed": 5
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "shot@0.0001",
+  "directions": 12,
+  "median_recovery": 0.01,
+  "n_recovery_below_half": 12,
+  "n_harmed": 4
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "aad",
+  "directions": 12,
+  "median_recovery": 0.05,
+  "n_recovery_below_half": 12,
+  "n_harmed": 4
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "em_prior",
+  "directions": 12,
+  "median_recovery": -0.01,
+  "n_recovery_below_half": 12,
+  "n_harmed": 0
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "tent_tuned_best",
+  "directions": 12,
+  "median_recovery": 0.11,
+  "n_recovery_below_half": 12,
+  "n_harmed": 4
+ },
+ {
+  "featset": "all",
+  "prior": "natural",
+  "method": "shot_tuned_best",
+  "directions": 12,
+  "median_recovery": 0.06,
+  "n_recovery_below_half": 12,
+  "n_harmed": 3
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "bn_adapt",
+  "directions": 12,
+  "median_recovery": -0.28,
+  "n_recovery_below_half": 12,
+  "n_harmed": 8
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "tent@0.001",
+  "directions": 12,
+  "median_recovery": -0.29,
+  "n_recovery_below_half": 12,
+  "n_harmed": 8
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "shot@0.0001",
+  "directions": 12,
+  "median_recovery": -0.04,
+  "n_recovery_below_half": 12,
+  "n_harmed": 4
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "aad",
+  "directions": 12,
+  "median_recovery": -0.23,
+  "n_recovery_below_half": 12,
+  "n_harmed": 9
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "em_prior",
+  "directions": 12,
+  "median_recovery": 0.0,
+  "n_recovery_below_half": 12,
+  "n_harmed": 2
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "tent_tuned_best",
+  "directions": 12,
+  "median_recovery": -0.28,
+  "n_recovery_below_half": 12,
+  "n_harmed": 8
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "0.05",
+  "method": "shot_tuned_best",
+  "directions": 12,
+  "median_recovery": -0.03,
+  "n_recovery_below_half": 12,
+  "n_harmed": 3
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "bn_adapt",
+  "directions": 12,
+  "median_recovery": -0.26,
+  "n_recovery_below_half": 12,
+  "n_harmed": 7
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "tent@0.001",
+  "directions": 12,
+  "median_recovery": -0.27,
+  "n_recovery_below_half": 12,
+  "n_harmed": 7
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "shot@0.0001",
+  "directions": 12,
+  "median_recovery": 0.02,
+  "n_recovery_below_half": 12,
+  "n_harmed": 5
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "aad",
+  "directions": 12,
+  "median_recovery": -0.22,
+  "n_recovery_below_half": 12,
+  "n_harmed": 8
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "em_prior",
+  "directions": 12,
+  "median_recovery": 0.01,
+  "n_recovery_below_half": 12,
+  "n_harmed": 1
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "tent_tuned_best",
+  "directions": 12,
+  "median_recovery": -0.26,
+  "n_recovery_below_half": 12,
+  "n_harmed": 7
+ },
+ {
+  "featset": "no_artifacts",
+  "prior": "natural",
+  "method": "shot_tuned_best",
+  "directions": 12,
+  "median_recovery": 0.03,
+  "n_recovery_below_half": 12,
+  "n_harmed": 5
+ }
+]

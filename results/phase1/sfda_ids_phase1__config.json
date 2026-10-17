@@ -1,0 +1,74 @@
+{
+  "datasets": {
+    "ton": "dhoogla/nftoniotv2",
+    "unsw": "dhoogla/nfunswnb15v2",
+    "bot": "dhoogla/nfbotiotv2",
+    "cic": "dhoogla/nfcsecicids2018v2"
+  },
+  "required": [
+    "ton",
+    "unsw"
+  ],
+  "known_rows": {
+    "ton": 16940496,
+    "unsw": 2390275,
+    "bot": 37763497,
+    "cic": 18893708
+  },
+  "attack_rate": {
+    "ton": 0.6399,
+    "unsw": 0.0398,
+    "bot": 0.9964,
+    "cic": 0.1195
+  },
+  "n_per_dataset": 300000,
+  "test_frac": 0.3,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "hidden": [
+    128,
+    64
+  ],
+  "src_epochs": 5,
+  "bs": 512,
+  "lr": 0.001,
+  "priors": [
+    "natural",
+    0.05
+  ],
+  "n_target_train": 100000,
+  "n_target_test": 40000,
+  "featsets": [
+    "all",
+    "no_artifacts"
+  ],
+  "artifacts": [
+    "MIN_TTL",
+    "MAX_TTL",
+    "TCP_WIN_MAX_IN",
+    "TCP_WIN_MAX_OUT"
+  ],
+  "tent_lrs": [
+    0.0001,
+    0.001,
+    0.01
+  ],
+  "shot_lrs": [
+    1e-05,
+    0.0001,
+    0.001
+  ],
+  "default_tent_lr": 0.001,
+  "default_shot_lr": 0.0001,
+  "tent_epochs": 1,
+  "shot_epochs": 3,
+  "shot_beta": 0.3,
+  "aad_epochs": 3,
+  "aad_lr": 0.0001,
+  "aad_k": 5,
+  "harm_margin": 0.05,
+  "recovery_min": 0.5
+}

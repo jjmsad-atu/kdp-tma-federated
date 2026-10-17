@@ -1,0 +1,10 @@
+{
+  "criteria": {
+    "beats_by_margin_at_5pct": false,
+    "not_worse_clean": false,
+    "fpr_ok": false,
+    "significant": false
+  },
+  "best_at_5pct": "bara_fused",
+  "decision": "NOT MET: ['beats_by_margin_at_5pct', 'not_worse_clean', 'fpr_ok', 'significant'] \u2014 best at 5% contamination is bara_fused; inspect per_cell.csv before any claim"
+}
